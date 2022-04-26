@@ -1,0 +1,25 @@
+H^COPY  ^000000^00107F
+000003              LDB       #LENGTH
+    692039    
+000009    CLOOP     +JSUB     RDREC
+    4B10103C    
+000010              COMP      #0
+    292000    
+000016              +JSUB     WRREC
+    4B101064    
+00001D    ENDFIL    LDA       EOF
+    032010    
+000023              LDA       #3
+    012003    
+000029              +JSUB     WRREC
+    4B101064    
+001046    RLOOP     TD        INPUT
+    E32019    
+00104C              RD        INPUT
+    DB2013    
+001051              JEQ       EXIT
+    332008    
+00105C    EXIT      STX       LENGTH
+    132FDA    
+001069    WLOOP     TD        OUTPUT
+    E32011    
