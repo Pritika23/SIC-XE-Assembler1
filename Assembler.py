@@ -111,7 +111,7 @@ f3.seek(0)
 f4 = open("Object_Program.txt", "w+")
 for line in f3:
     temp = line.split()
-    temp1 = f3.readline()  #readlines()
+    temp1 = f3.readline()  # readlines()
     line1 = temp1.split()
     if temp[-2] != "END":
         PC = int(line1[0], 16)
@@ -143,7 +143,7 @@ for line in f3:
             OPCODE = OPTAB[t]
             i2 = int(OPCODE[1])
             b1 = bin(i2)
-            l1 = list(b1)  #s[:-2]+'11'
+            l1 = list(b1)  # s[:-2]+'11'
             l1[-1] = l1[-2] = '1'
             b1 = "".join(l1)
             b1 = b1.replace('0b', '')
@@ -187,6 +187,7 @@ for line in f3:
             i2 = int(OPCODE[1])
             b1 = bin(i2)
             l1 = list(b1)
+            # this is test
             l1[-1] = '0'
             l1[-2] = '1'
             b1 = "".join(l1)
