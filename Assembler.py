@@ -1,5 +1,5 @@
 OPTAB = {"ADD": "18", "ADDR": "58", "CLEAR": "B4", "COMP": "28", "COMPR": "A0", "J": "3C", "JEQ": "30", "JLT": "38", "JSUB": "48", "LDA": "00", "LDB": "68",
-         "LDCH": "50", "LDT": "74", "RD": "D8", "RSUB": "4C", "STA": "0C", "STCH": "54", "STL": "14", "STX": "10", "TD": "E0", "TIXR": "B8", "WD": "DC"}
+         "LDCH": "50", "LDT": "74", "LDX": "04", "RD": "D8", "RSUB": "4C", "STA": "0C", "STCH": "54", "STL": "14", "STX": "10", "TD": "E0", "TIX": "2C", "TIXR": "B8", "WD": "DC"}
 LOCCTR = '000000'
 BASE = ''
 ADCT = 0
@@ -34,7 +34,7 @@ for line in f1:
         SYMTAB[temp[0]] = LOCCTR
         LOCCTR = LOCCTR.zfill(6)
     if len(temp) == 3 or len(temp) == 2:
-        # checking if its format 3
+        # format 3
         if temp[-2] not in FORMAT2 and '+' not in temp[-2] and temp[-2] not in KEYWORDS:
             ADCT += 3
             s = hex(ADCT)
@@ -146,28 +146,6 @@ for i in range(l):
             TA = SYMTAB[temp[-1]]
             obj_code += TA[-5]+TA[-4]+TA[-3]+TA[-2]+TA[-1]
             f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
-        # Format 4 instructions with immediate addressing
-        elif temp[-2].replace('+', '') in OPTAB and '+' in temp[-2] and '#' in temp[-1]:
-            t = temp[-2].replace('+', '')
-            OPCODE = OPTAB[t.replace('\n', '')]
-            i2 = int(OPCODE[1], 16)
-            b1 = bin(i2)
-            b1 = b1[:-2]+'11'
-            b1 = b1.replace('0b', '')
-            i2 = int(b1, 2)
-            h1 = hex(i2)
-            h1 = h1.replace('0x', '')
-            obj_code = OPCODE[0] + h1.upper() + '1'
-            if temp[-1].replace('#', '') in SYMTAB:
-                TA = SYMTAB[temp[-1].replace('#', '')]
-                TA = str(TA).zfill(5)
-                obj_code += TA[-5]+TA[-4]+TA[-3]+TA[-2]+TA[-1]
-            elif temp[-1].replace('#', '') not in SYMTAB:
-                TA = temp[-1].replace('#', '')
-                TA = TA.zfill(5)
-                obj_code += TA
-                f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
-
         # normal format 3 instructions AND indirect: not F4, not F2, not indexed, not a declaration, not immediate, not indirect
         elif temp[-2] in OPTAB and '+' not in temp[-2] and temp[-2] not in FORMAT2 and ',X' not in temp[-1] and temp[-2] not in KEYWORDS and '#' not in temp[-1] and '@' not in temp[-1]:
             OPCODE = OPTAB[temp[-2].replace('\n', '')]
@@ -185,7 +163,7 @@ for i in range(l):
             disps = disps.replace('0x', '')
             obj_code += (disps.upper()).zfill(3)
             f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
-        # indirect addressing in F3 -> doesn't work
+        # indirect addressing in F3
         elif '@' in temp[-1] and temp[-2] in OPTAB and '+' not in temp[-2] and temp[-2] not in FORMAT2 and ',X' not in temp[-1] and temp[-2] not in KEYWORDS and '#' not in temp[-1]:
             OPCODE = OPTAB[temp[-2].replace('\n', '')]
             i2 = int(OPCODE[1], 16)
@@ -214,16 +192,16 @@ for i in range(l):
             i2 = int(b1, 2)
             h1 = hex(i2)
             h1 = h1.replace('0x', '')
-            obj_code = OPCODE[0] + h1.upper() + '2'
+            obj_code = OPCODE[0] + h1.upper() + '0'
             if o in SYMTAB:  # for #LENGTH
                 disps = SYMTAB[o][-3] + SYMTAB[o][-2] + SYMTAB[o][-1]
             else:
-                val = int(temp[-1][-1])
+                val = int(temp[-1].replace('#', ''))
                 disps = tohex(val, 12)
             disps = disps.replace('0x', '')
             obj_code += (disps.upper()).zfill(3)
             f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
-        # indexed addressing  -> hard coded for BUFFER, X
+        # indexed addressing  -> hard coded for BUFFER, X  -> modify to support both PC and base relative
         elif ',X' in temp[-1]:
             OPCODE = OPTAB[temp[-2].replace('\n', '')]
             i2 = int(OPCODE[1], 16)
@@ -251,4 +229,41 @@ for i in range(l):
             else:
                 r = REGISTERS[temp[-1]]
                 obj_code = OPCODE+r+'0'
+            f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+        # format 4 with immediate addressing
+        elif '#' in temp[-1] and '+' in temp[-2]:
+            o = temp[-1].replace('#', '')
+            OPCODE = OPTAB[(temp[-2].replace('\n', '')).replace('+', '')]
+            i2 = int(OPCODE[1], 16)
+            b1 = bin(i2)
+            b1 = b1[:-2]+'01'
+            b1 = b1.replace('0b', '')
+            i2 = int(b1, 2)
+            h1 = hex(i2)
+            h1 = h1.replace('0x', '')
+            obj_code = OPCODE[0] + h1.upper() + '1'
+            if o in SYMTAB:  # for #VAL
+                TA = hex(int(str(SYMTAB[o]), 16)).replace(
+                    '0x', '').upper().zfill(5)
+            elif o not in SYMTAB:
+                TA = ((hex(int(o)).replace('0x', '')).upper()).zfill(5)
+            obj_code += TA
+            f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+        # handling RSUB
+        elif temp[-1] == 'RSUB':
+            obj_code = '4F0000'
+            f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+        # for BYTE declaration
+        elif temp[-2] == 'BYTE':
+            obj_code = ""
+            if temp[-1][0] == 'C':
+                for i in range(2, len(temp[-1])-1):
+                    obj_code += ((hex(ord(temp[-1][i])
+                                      ).replace('0x', '')).upper())
+            elif temp[-1][0] == 'X':
+                obj_code += temp[-1][2:len(temp[-1])-1]
+            f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+        # for WORD declaration
+        elif temp[-2] == 'WORD':
+            obj_code = temp[-1].zfill(6)
             f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")

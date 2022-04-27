@@ -2,13 +2,13 @@ H^COPY  ^000000^00107F
 000000    FIRST     STL       RETADR
     172033    
 000003              LDB       #LENGTH
-    692039    
+    690039    
 000009    CLOOP     +JSUB     RDREC
     4B10103C    
 00000D              LDA       LENGTH
     032029    
 000010              COMP      #0
-    292000    
+    290000    
 000013              JEQ       ENDFIL
     332007    
 000016              +JSUB     WRREC
@@ -20,19 +20,23 @@ H^COPY  ^000000^00107F
 000020              STA       BUFFER
     0F2019    
 000023              LDA       #3
-    012003    
+    010003    
 000026              STA       LENGTH
     0F2010    
 000029              +JSUB     WRREC
     4B101064    
 00002D              J         @RETADR
     3E2006    
+000030    EOF       BYTE      C'EOF'
+    454F46    
 00103C    RDREC     CLEAR     X
     B410    
 00103E              CLEAR     A
     B400    
 001040              CLEAR     S
     B440    
+001042              +LDT      #VAL
+    75104096    
 001046    RLOOP     TD        INPUT
     E32019    
 001049              JEQ       RLOOP
@@ -51,6 +55,10 @@ H^COPY  ^000000^00107F
     3B2FEA    
 00105C    EXIT      STX       LENGTH
     132000    
+00105F              RSUB
+    4F0000    
+001062    INPUT     BYTE      X'F1'
+    F1      
 001064    WRREC     CLEAR     X
     B410    
 001066              LDT       LENGTH
@@ -67,3 +75,7 @@ H^COPY  ^000000^00107F
     B850    
 001077              JLT       WLOOP
     3B2FEF    
+00107A              RSUB
+    4F0000    
+00107D    OUTPUT    BYTE      X'05'
+    05      
