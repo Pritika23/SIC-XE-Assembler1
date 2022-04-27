@@ -1,0 +1,69 @@
+H^COPY  ^000000^00107F
+000000    FIRST     STL       RETADR
+    172033    
+000003              LDB       #LENGTH
+    692039    
+000009    CLOOP     +JSUB     RDREC
+    4B10103C    
+00000D              LDA       LENGTH
+    032029    
+000010              COMP      #0
+    292000    
+000013              JEQ       ENDFIL
+    332007    
+000016              +JSUB     WRREC
+    4B101064    
+00001A              J         CLOOP
+    3F2FEC    
+00001D    ENDFIL    LDA       EOF
+    032010    
+000020              STA       BUFFER
+    0F2019    
+000023              LDA       #3
+    012003    
+000026              STA       LENGTH
+    0F2010    
+000029              +JSUB     WRREC
+    4B101064    
+00002D              J         @RETADR
+    3E2006    
+00103C    RDREC     CLEAR     X
+    B410    
+00103E              CLEAR     A
+    B400    
+001040              CLEAR     S
+    B440    
+001046    RLOOP     TD        INPUT
+    E32019    
+001049              JEQ       RLOOP
+    332FFA    
+00104C              RD        INPUT
+    DB2013    
+00104F              COMPR     A,S
+    A004    
+001051              JEQ       EXIT
+    332008    
+001054              STCH      BUFFER,X
+    57C003    
+001057              TIXR      T
+    B850    
+001059              JLT       RLOOP
+    3B2FEA    
+00105C    EXIT      STX       LENGTH
+    132000    
+001064    WRREC     CLEAR     X
+    B410    
+001066              LDT       LENGTH
+    772000    
+001069    WLOOP     TD        OUTPUT
+    E32011    
+00106C              JEQ       WLOOP
+    332FFA    
+00106F              LDCH      BUFFER,X
+    53C003    
+001072              WD        OUTPUT
+    DF2008    
+001075              TIXR      T
+    B850    
+001077              JLT       WLOOP
+    3B2FEF    
