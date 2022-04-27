@@ -117,6 +117,7 @@ f3 = open("Intermediate.txt", "r")
 f4 = open("Object_Program.txt", "w+")
 temp1 = f3.readlines()
 l = len(temp1)
+OBJ_CODES = {}  # dict to store instructions and their corresponding object codes
 for i in range(l):
     line = temp1[i]
     temp = line.split()
@@ -145,7 +146,8 @@ for i in range(l):
             obj_code = OPCODE[0] + h1.upper() + '1'
             TA = SYMTAB[temp[-1]]
             obj_code += TA[-5]+TA[-4]+TA[-3]+TA[-2]+TA[-1]
-            f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+            #f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+            OBJ_CODES[line] = obj_code
         # normal format 3 instructions AND indirect: not F4, not F2, not indexed, not a declaration, not immediate, not indirect
         elif temp[-2] in OPTAB and '+' not in temp[-2] and temp[-2] not in FORMAT2 and ',X' not in temp[-1] and temp[-2] not in KEYWORDS and '#' not in temp[-1] and '@' not in temp[-1]:
             OPCODE = OPTAB[temp[-2].replace('\n', '')]
@@ -162,7 +164,8 @@ for i in range(l):
             disps = tohex(disp, 12)
             disps = disps.replace('0x', '')
             obj_code += (disps.upper()).zfill(3)
-            f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+            #f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+            OBJ_CODES[line] = obj_code
         # indirect addressing in F3
         elif '@' in temp[-1] and temp[-2] in OPTAB and '+' not in temp[-2] and temp[-2] not in FORMAT2 and ',X' not in temp[-1] and temp[-2] not in KEYWORDS and '#' not in temp[-1]:
             OPCODE = OPTAB[temp[-2].replace('\n', '')]
@@ -180,7 +183,8 @@ for i in range(l):
             disps = tohex(disp, 12)
             disps = disps.replace('0x', '')
             obj_code += (disps.upper()).zfill(3)
-            f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+            #f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+            OBJ_CODES[line] = obj_code
         # immediate addressing in F3
         elif '#' in temp[-1] and '+' not in temp[-2] and temp[-2] not in FORMAT2 and ',X' not in temp[-1] and temp[-2] not in KEYWORDS and '@' not in temp[-1]:
             o = temp[-1].replace('#', '')
@@ -200,7 +204,8 @@ for i in range(l):
                 disps = tohex(val, 12)
             disps = disps.replace('0x', '')
             obj_code += (disps.upper()).zfill(3)
-            f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+            #f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+            OBJ_CODES[line] = obj_code
         # indexed addressing  -> hard coded for BUFFER, X  -> modify to support both PC and base relative
         elif ',X' in temp[-1]:
             OPCODE = OPTAB[temp[-2].replace('\n', '')]
@@ -218,7 +223,8 @@ for i in range(l):
             disps = disps.replace('0x', '')
             obj_code += (disps.upper()).zfill(3)
             #print('\n'+line+"    "+obj_code.ljust(4)+"    ")
-            f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+            #f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+            OBJ_CODES[line] = obj_code
         # format 2
         elif temp[-2] in FORMAT2:
             OPCODE = OPTAB[temp[-2].replace('\n', '')]
@@ -229,7 +235,8 @@ for i in range(l):
             else:
                 r = REGISTERS[temp[-1]]
                 obj_code = OPCODE+r+'0'
-            f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+            #f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+            OBJ_CODES[line] = obj_code
         # format 4 with immediate addressing
         elif '#' in temp[-1] and '+' in temp[-2]:
             o = temp[-1].replace('#', '')
@@ -248,11 +255,13 @@ for i in range(l):
             elif o not in SYMTAB:
                 TA = ((hex(int(o)).replace('0x', '')).upper()).zfill(5)
             obj_code += TA
-            f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+            #f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+            OBJ_CODES[line] = obj_code
         # handling RSUB
         elif temp[-1] == 'RSUB':
             obj_code = '4F0000'
-            f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+            #f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+            OBJ_CODES[line] = obj_code
         # for BYTE declaration
         elif temp[-2] == 'BYTE':
             obj_code = ""
@@ -262,8 +271,38 @@ for i in range(l):
                                       ).replace('0x', '')).upper())
             elif temp[-1][0] == 'X':
                 obj_code += temp[-1][2:len(temp[-1])-1]
-            f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+            #f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+            OBJ_CODES[line] = obj_code
         # for WORD declaration
         elif temp[-2] == 'WORD':
             obj_code = temp[-1].zfill(6)
-            f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+            #f4.write('\n'+line+"    "+obj_code.ljust(4)+"    ")
+            OBJ_CODES[line] = obj_code
+        else:  # case for RESW, RESB
+            OBJ_CODES[line] = temp[-2]
+# generating text records
+t_counter = 0
+tr = "\nT^"+'000000'
+for i in OBJ_CODES:
+    line = i.split()
+    loc = line[0]
+    if line[-2] != "EQU" and line[-2] != "RESW" and line[-2] != "RESB" and line[1] != "." and line[-2] != "BASE":
+        if len(OBJ_CODES[i]) == 4:
+            t_counter += 2
+        elif len(OBJ_CODES[i]) == 6:
+            t_counter += 3
+        elif len(OBJ_CODES[i]) == 8:
+            t_counter += 4
+        else:
+            t_counter += len(OBJ_CODES[i])
+    # case for declarations -> do this!
+    elif line[-2] == "EQU" or line[-2] == "RESW":
+        f4.write('\n')
+    if t_counter <= 30 and line[1] != "." and line[-2] != "EQU" and line[-2] != "RESW" and line[-2] != "RESB" and line[-2] != "BASE":
+        tr += "^"+OBJ_CODES[i]
+        size = hex(t_counter).replace('0x', '').upper()
+    elif t_counter > 30:
+        tr = tr[0:9]+"^"+size+tr[9:]
+        f4.write(tr)
+        tr = '\nT^'+loc
+        t_counter = 0
