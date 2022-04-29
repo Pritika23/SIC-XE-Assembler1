@@ -1,5 +1,5 @@
 #import sys
-#inputFile = sys.argv[1]
+# inputFile = sys.argv[1]  --> uncomment
 OPTAB = {"ADD": "18", "ADDR": "58", "CLEAR": "B4", "COMP": "28", "COMPR": "A0", "J": "3C", "JEQ": "30", "JLT": "38", "JSUB": "48", "LDA": "00", "LDB": "68",
          "LDCH": "50", "LDT": "74", "LDX": "04", "RD": "D8", "RSUB": "4C", "STA": "0C", "STCH": "54", "STL": "14", "STX": "10", "TD": "E0", "TIX": "2C", "TIXR": "B8", "WD": "DC"}
 LOCCTR = '000000'
@@ -29,8 +29,11 @@ for line in f1:
         else:
             SYMTAB[temp[0]] = str(LOCCTR)
     # writing to intermediate file
-    f2.write(LOCCTR+"    ")
-    f2.write(line)
+    if '.' in temp:
+        f2.write(line)
+    else:
+        f2.write(LOCCTR+"    ")
+        f2.write(line)
     if len(temp) > 1 and temp[-2] == "START":
         SYMTAB[temp[0]] = LOCCTR
         LOCCTR = LOCCTR.zfill(6)
@@ -108,10 +111,21 @@ def tohex(val, nbits):  # for converting negative hex numbers in FF.. format
     return hex((val + (1 << nbits)) % (1 << nbits))
 
 
-def calc_disp(TA, PC):
+def calc_disp(TA, PC, BASE):
     if TA-PC >= -2048 and TA-PC <= 2047:
         return TA-PC
     return TA-BASE
+
+
+def generate_obj_code(OPCODE, str, last_dig):
+    i2 = int(OPCODE[1], 16)
+    b1 = bin(i2)
+    b1 = b1[:-2]+str
+    b1 = b1.replace('0b', '')
+    i2 = int(b1, 2)
+    h1 = hex(i2)
+    h1 = h1.replace('0x', '')
+    return OPCODE[0] + h1.upper() + last_dig
 
 
 f3 = open("Intermediate.txt", "r")
@@ -122,10 +136,13 @@ OBJ_CODES = {}  # dict to store instructions and their corresponding object code
 for i in range(l):
     line = temp1[i]
     temp = line.split()
+    # comments
+    if temp[0] == '.':
+        continue
     # BASE directive
     if temp[-2] == 'BASE':
         BASE = int(SYMTAB[temp[-1]], 16)
-    if temp[-2] != "END":
+    if temp[-2] != "END" and temp1[i+1][0] != '.':
         line1 = temp1[i+1]
         l1 = line1.split()
         PC = int(l1[0], 16)
@@ -137,30 +154,16 @@ for i in range(l):
         elif temp[-2].replace('+', '') in OPTAB and '+' in temp[-2] and '#' not in temp[-1]:
             t = temp[-2].replace('+', '')
             OPCODE = OPTAB[t.replace('\n', '')]
-            i2 = int(OPCODE[1], 16)
-            b1 = bin(i2)
-            b1 = b1[:-2]+'11'
-            b1 = b1.replace('0b', '')
-            i2 = int(b1, 2)
-            h1 = hex(i2)
-            h1 = h1.replace('0x', '')
-            obj_code = OPCODE[0] + h1.upper() + '1'
+            obj_code = generate_obj_code(OPCODE, '11', '1')
             TA = SYMTAB[temp[-1]]
             obj_code += TA[-5]+TA[-4]+TA[-3]+TA[-2]+TA[-1]
             OBJ_CODES[line] = obj_code
         # normal format 3 instructions AND indirect: not F4, not F2, not indexed, not a declaration, not immediate, not indirect
         elif temp[-2] in OPTAB and '+' not in temp[-2] and temp[-2] not in FORMAT2 and ',X' not in temp[-1] and temp[-2] not in KEYWORDS and '#' not in temp[-1] and '@' not in temp[-1]:
             OPCODE = OPTAB[temp[-2].replace('\n', '')]
-            i2 = int(OPCODE[1], 16)
-            b1 = bin(i2)
-            b1 = b1[:-2]+'11'
-            b1 = b1.replace('0b', '')
-            i2 = int(b1, 2)
-            h1 = hex(i2)
-            h1 = h1.replace('0x', '')
-            obj_code = OPCODE[0] + h1.upper() + '2'
+            obj_code = generate_obj_code(OPCODE, '11', '2')
             TA = int(SYMTAB[temp[-1]], 16)
-            disp = calc_disp(TA, PC)
+            disp = calc_disp(TA, PC, BASE)
             disps = tohex(disp, 12)
             disps = disps.replace('0x', '')
             obj_code += (disps.upper()).zfill(3)
@@ -168,17 +171,10 @@ for i in range(l):
         # indirect addressing in F3
         elif '@' in temp[-1] and temp[-2] in OPTAB and '+' not in temp[-2] and temp[-2] not in FORMAT2 and ',X' not in temp[-1] and temp[-2] not in KEYWORDS and '#' not in temp[-1]:
             OPCODE = OPTAB[temp[-2].replace('\n', '')]
-            i2 = int(OPCODE[1], 16)
-            b1 = bin(i2)
-            b1 = b1[:-2]+'10'
-            b1 = b1.replace('0b', '')
-            i2 = int(b1, 2)
-            h1 = hex(i2)
-            h1 = h1.replace('0x', '')
-            obj_code = OPCODE[0] + h1.upper() + '2'
+            obj_code = generate_obj_code(OPCODE, '10', '2')
             o = temp[-1].replace('@', '')
             TA = int(SYMTAB[o], 16)
-            disp = calc_disp(TA, PC)
+            disp = calc_disp(TA, PC, BASE)
             disps = tohex(disp, 12)
             disps = disps.replace('0x', '')
             obj_code += (disps.upper()).zfill(3)
@@ -187,14 +183,7 @@ for i in range(l):
         elif '#' in temp[-1] and '+' not in temp[-2] and temp[-2] not in FORMAT2 and ',X' not in temp[-1] and temp[-2] not in KEYWORDS and '@' not in temp[-1]:
             o = temp[-1].replace('#', '')
             OPCODE = OPTAB[temp[-2].replace('\n', '')]
-            i2 = int(OPCODE[1], 16)
-            b1 = bin(i2)
-            b1 = b1[:-2]+'01'
-            b1 = b1.replace('0b', '')
-            i2 = int(b1, 2)
-            h1 = hex(i2)
-            h1 = h1.replace('0x', '')
-            obj_code = OPCODE[0] + h1.upper() + '0'
+            obj_code = generate_obj_code(OPCODE, '01', '0')
             if o in SYMTAB:  # for #LENGTH
                 disps = SYMTAB[o][-3] + SYMTAB[o][-2] + SYMTAB[o][-1]
             else:
@@ -206,16 +195,9 @@ for i in range(l):
         # indexed addressing  -> hard coded for BUFFER, X  -> modify to support both PC and base relative
         elif ',X' in temp[-1]:
             OPCODE = OPTAB[temp[-2].replace('\n', '')]
-            i2 = int(OPCODE[1], 16)
-            b1 = bin(i2)
-            b1 = b1[:-2]+'11'
-            b1 = b1.replace('0b', '')
-            i2 = int(b1, 2)
-            h1 = hex(i2)
-            h1 = h1.replace('0x', '')
-            obj_code = OPCODE[0] + h1.upper() + 'C'
+            obj_code = generate_obj_code(OPCODE, '11', 'C')
             TA = int(SYMTAB[(temp[-1])[:-2]], 16)
-            disp = calc_disp(TA, PC)
+            disp = calc_disp(TA, PC, BASE)
             disps = tohex(disp, 12)
             disps = disps.replace('0x', '')
             obj_code += (disps.upper()).zfill(3)
@@ -235,14 +217,7 @@ for i in range(l):
         elif '#' in temp[-1] and '+' in temp[-2]:
             o = temp[-1].replace('#', '')
             OPCODE = OPTAB[(temp[-2].replace('\n', '')).replace('+', '')]
-            i2 = int(OPCODE[1], 16)
-            b1 = bin(i2)
-            b1 = b1[:-2]+'01'
-            b1 = b1.replace('0b', '')
-            i2 = int(b1, 2)
-            h1 = hex(i2)
-            h1 = h1.replace('0x', '')
-            obj_code = OPCODE[0] + h1.upper() + '1'
+            obj_code = generate_obj_code(OPCODE, '01', '1')
             if o in SYMTAB:  # for #VAL
                 TA = hex(int(str(SYMTAB[o]), 16)).replace(
                     '0x', '').upper().zfill(5)
@@ -288,7 +263,6 @@ for i in OBJ_CODES:
             t_counter += len(OBJ_CODES[i])
     # case for declarations
     elif line[-2] == "EQU" or line[-2] == "RESW":
-        #loc = line[0]
         f4.write('')
         t_counter = t_counter+30
         continue
@@ -299,8 +273,8 @@ for i in OBJ_CODES:
         loc = line[0]
         tr = tr[0:9]+"^"+size.zfill(2)+tr[9:]
         f4.write(tr)
-        tr = '\nT^'+loc
-        t_counter = 0
+        tr = '\nT^'+loc+"^"+OBJ_CODES[i]
+        t_counter = int(len(OBJ_CODES[i])/2)
 loc = line[0]
 tr = tr[0:9]+"^"+size.zfill(2)+tr[9:]
 f4.write(tr)
