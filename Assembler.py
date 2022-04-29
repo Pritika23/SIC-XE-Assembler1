@@ -9,7 +9,7 @@ FORMAT2 = ["ADDR", "CLEAR", "COMPR", "TIXR"]
 KEYWORDS = ["BYTE", "RESW", "RESB", "WORD"]
 REGISTERS = {"A": "0", "X": "1", "L": "2", "B": "3",
              "S": "4", "T": "5", "F": "6", "PC": "7", "SW": "8"}
-#f1 = open(inputFile, "r")
+# f1 = open(inputFile, "r")  --> for command line args
 f1 = open("Input.txt", "r")
 f2 = open("Intermediate.txt", "w+")
 SYMTAB = {}
