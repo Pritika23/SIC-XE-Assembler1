@@ -1,5 +1,5 @@
-#import sys
-# inputFile = sys.argv[1]  --> uncomment
+import sys
+inputFile = sys.argv[1]
 OPTAB = {"ADD": "18", "ADDR": "58", "CLEAR": "B4", "COMP": "28", "COMPR": "A0", "J": "3C", "JEQ": "30", "JLT": "38", "JSUB": "48", "LDA": "00", "LDB": "68",
          "LDCH": "50", "LDT": "74", "LDX": "04", "RD": "D8", "RSUB": "4C", "STA": "0C", "STCH": "54", "STL": "14", "STX": "10", "TD": "E0", "TIX": "2C", "TIXR": "B8", "WD": "DC"}
 LOCCTR = '000000'
@@ -9,8 +9,7 @@ FORMAT2 = ["ADDR", "CLEAR", "COMPR", "TIXR"]
 KEYWORDS = ["BYTE", "RESW", "RESB", "WORD"]
 REGISTERS = {"A": "0", "X": "1", "L": "2", "B": "3",
              "S": "4", "T": "5", "F": "6", "PC": "7", "SW": "8"}
-# f1 = open(inputFile, "r")  --> for command line args
-f1 = open("Input.txt", "r")
+f1 = open(inputFile, "r")
 f2 = open("Intermediate.txt", "w+")
 SYMTAB = {}
 l1 = f1.readline()
@@ -29,15 +28,15 @@ for line in f1:
         else:
             SYMTAB[temp[0]] = str(LOCCTR)
     # writing to intermediate file
-    if '.' in temp:
-        f2.write(line)
+    if '.' in temp or 'BASE' in temp:
+        f2.write('          '+line)
     else:
         f2.write(LOCCTR+"    ")
         f2.write(line)
     if len(temp) > 1 and temp[-2] == "START":
         SYMTAB[temp[0]] = LOCCTR
         LOCCTR = LOCCTR.zfill(6)
-    if len(temp) == 3 or len(temp) == 2:
+    if len(temp) == 3 or len(temp) == 2 and temp[-2] != 'BASE':
         # format 3
         if temp[-2] not in FORMAT2 and '+' not in temp[-2] and temp[-2] not in KEYWORDS:
             ADCT += 3
@@ -62,7 +61,10 @@ for line in f1:
         # declarations
         elif temp[-2] in KEYWORDS:
             if temp[-2] == "BYTE":
-                ADCT += len(temp[2])-3
+                if temp[-1][0] == 'X':
+                    ADCT += 1
+                elif temp[-1][0] == 'C':
+                    ADCT += (len(temp[-1])-3)
                 s = hex(ADCT)
                 LOCCTR = s.replace('0x', '')
                 LOCCTR = LOCCTR.upper()
@@ -133,25 +135,26 @@ f4 = open("Object_Program.txt", "w+")
 temp1 = f3.readlines()
 l = len(temp1)
 OBJ_CODES = {}  # dict to store instructions and their corresponding object codes
-for i in range(l):
+for i in range(l-1):
     line = temp1[i]
     temp = line.split()
     # comments
     if temp[0] == '.':
         continue
     # BASE directive
-    if temp[-2] == 'BASE':
+    if len(temp) > 1 and temp[-2] == 'BASE':
         BASE = int(SYMTAB[temp[-1]], 16)
-    if temp[-2] != "END" and temp1[i+1][0] != '.':
+    elif temp1[i+1][0] != 'BASE' and len(temp) > 1 and temp[-2] != "END" and temp1[i+1][0] != '.':
         line1 = temp1[i+1]
         l1 = line1.split()
-        PC = int(l1[0], 16)
+        if l1[0] != 'BASE' and l1[0] != '.':
+            PC = int(l1[0], 16)
         # header
-        if temp[-2] == "START":
+        if len(temp) > 1 and temp[-2] == "START":
             f4.write("H^"+PROGNAME+"^"+"000000^"+LOCCTR)
         # text records
         # Format 4 instructions without immediate addressing
-        elif temp[-2].replace('+', '') in OPTAB and '+' in temp[-2] and '#' not in temp[-1]:
+        elif len(temp) > 1 and temp[-2].replace('+', '') in OPTAB and '+' in temp[-2] and '#' not in temp[-1]:
             t = temp[-2].replace('+', '')
             OPCODE = OPTAB[t.replace('\n', '')]
             obj_code = generate_obj_code(OPCODE, '11', '1')
@@ -159,7 +162,7 @@ for i in range(l):
             obj_code += TA[-5]+TA[-4]+TA[-3]+TA[-2]+TA[-1]
             OBJ_CODES[line] = obj_code
         # normal format 3 instructions AND indirect: not F4, not F2, not indexed, not a declaration, not immediate, not indirect
-        elif temp[-2] in OPTAB and '+' not in temp[-2] and temp[-2] not in FORMAT2 and ',X' not in temp[-1] and temp[-2] not in KEYWORDS and '#' not in temp[-1] and '@' not in temp[-1]:
+        elif len(temp) > 1 and temp[-2] in OPTAB and '+' not in temp[-2] and temp[-2] not in FORMAT2 and ',X' not in temp[-1] and temp[-2] not in KEYWORDS and '#' not in temp[-1] and '@' not in temp[-1]:
             OPCODE = OPTAB[temp[-2].replace('\n', '')]
             obj_code = generate_obj_code(OPCODE, '11', '2')
             TA = int(SYMTAB[temp[-1]], 16)
@@ -183,10 +186,16 @@ for i in range(l):
         elif '#' in temp[-1] and '+' not in temp[-2] and temp[-2] not in FORMAT2 and ',X' not in temp[-1] and temp[-2] not in KEYWORDS and '@' not in temp[-1]:
             o = temp[-1].replace('#', '')
             OPCODE = OPTAB[temp[-2].replace('\n', '')]
-            obj_code = generate_obj_code(OPCODE, '01', '0')
             if o in SYMTAB:  # for #LENGTH
-                disps = SYMTAB[o][-3] + SYMTAB[o][-2] + SYMTAB[o][-1]
+                obj_code = generate_obj_code(OPCODE, '01', '2')
+                TA = int(SYMTAB[o], 16)
+                disp = calc_disp(TA, PC, BASE)
+                print(TA)
+                print(PC)
+                print(disp)
+                disps = tohex(disp, 12)
             else:
+                obj_code = generate_obj_code(OPCODE, '01', '0')
                 val = int(temp[-1].replace('#', ''))
                 disps = tohex(val, 12)
             disps = disps.replace('0x', '')
@@ -259,10 +268,12 @@ for i in OBJ_CODES:
             t_counter += 3
         elif len(OBJ_CODES[i]) == 8:
             t_counter += 4
+        elif 'BYTE' in line and line[-1][0] == 'X':
+            t_counter += 1
         else:
             t_counter += len(OBJ_CODES[i])
     # case for declarations
-    elif line[-2] == "EQU" or line[-2] == "RESW":
+    elif line[-2] == "EQU" or line[-2] == "RESW" or line[-2] == "RESB":
         f4.write('')
         t_counter = t_counter+30
         continue
@@ -282,7 +293,7 @@ f4.write(tr)
 # generating modification records
 for i in OBJ_CODES:
     line = i.split()
-    if line[-2][0] == '+':
+    if line[-2][0] == '+' and '#' not in line[-1]:
         loc = hex(int(line[0], 16)+1).replace('0x', '').zfill(6).upper()
         f4.write("\nM^"+loc+"^05")
 

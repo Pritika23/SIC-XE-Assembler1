@@ -1,53 +1,16 @@
-000000    COPY      START     000000
-000000    FIRST     STL       RETADR
-000003              LDB       #LENGTH
-000006              BASE      LENGTH
-000009    CLOOP     +JSUB     RDREC
-00000D              LDA       LENGTH
-000010              COMP      #0
-000013              JEQ       ENDFIL
-000016              +JSUB     WRREC
-00001A              J         CLOOP
-00001D    ENDFIL    LDA       EOF
-000020              STA       BUFFER
-000023              LDA       #3
-000026              STA       LENGTH
-000029              +JSUB     WRREC
-00002D              J         @RETADR
-000030    EOF       BYTE      C'EOF'
-000033    VAL       EQU       4096
-000036    RETADR    RESW      1
-000039    LENGTH    RESW      1
-00003C    BUFFER    RESB      4096
-.
-.	SUBROUTINE TO READ RECORD INTO BUFFER
-.
-00103C    RDREC     CLEAR     X
-00103E              CLEAR     A
-001040              CLEAR     S
-001042              +LDT      #VAL
-001046    RLOOP     TD        INPUT
-001049              JEQ       RLOOP
-00104C              RD        INPUT
-00104F              COMPR     A,S
-001051              JEQ       EXIT
-001054              STCH      BUFFER,X
-001057              TIXR      T
-001059              JLT       RLOOP
-00105C    EXIT      STX       LENGTH
-00105F              RSUB
-001062    INPUT     BYTE      X'F1'
-.
-.	SUBROUTINE TO WRITE RECORD FROM BUFFER
-.
-001064    WRREC     CLEAR     X
-001066              LDT       LENGTH
-001069    WLOOP     TD        OUTPUT
-00106C              JEQ       WLOOP
-00106F              LDCH      BUFFER,X
-001072              WD        OUTPUT
-001075              TIXR      T
-001077              JLT       WLOOP
-00107A              RSUB
-00107D    OUTPUT    BYTE      X'05'
-00107F              END       FIRST
+000000    SUM       START     0
+000000    FIRST     LDX       #0
+000003              LDA       #256
+000006              +LDB      #TABLE2
+00000A              BASE      TABLE2
+00000D    LOOP      ADD       TABLE,X
+000010              ADD       TABLE2,X
+000013              TIX       COUNT
+000016              JLT       LOOP
+000019              +STA      TOTAL
+00001D              RSUB
+000020    COUNT     RESW      1
+000023    TABLE     RESW      200
+00027B    TABLE2    RESW      200
+0004D3    TOTAL     RESW      1
+0004D6              END       FIRST
