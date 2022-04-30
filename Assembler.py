@@ -1,5 +1,5 @@
-import sys
-inputFile = sys.argv[1]
+#import sys
+#inputFile = sys.argv[1]
 OPTAB = {"ADD": "18", "ADDR": "58", "CLEAR": "B4", "COMP": "28", "COMPR": "A0", "J": "3C", "JEQ": "30", "JLT": "38", "JSUB": "48", "LDA": "00", "LDB": "68",
          "LDCH": "50", "LDT": "74", "LDX": "04", "RD": "D8", "RSUB": "4C", "STA": "0C", "STCH": "54", "STL": "14", "STX": "10", "TD": "E0", "TIX": "2C", "TIXR": "B8", "WD": "DC"}
 LOCCTR = '000000'
@@ -9,7 +9,8 @@ FORMAT2 = ["ADDR", "CLEAR", "COMPR", "TIXR"]
 KEYWORDS = ["BYTE", "RESW", "RESB", "WORD"]
 REGISTERS = {"A": "0", "X": "1", "L": "2", "B": "3",
              "S": "4", "T": "5", "F": "6", "PC": "7", "SW": "8"}
-f1 = open(inputFile, "r")
+#f1 = open(inputFile, "r")
+f1 = open("input1.txt", "r")
 f2 = open("Intermediate.txt", "w+")
 SYMTAB = {}
 l1 = f1.readline()
@@ -149,6 +150,10 @@ for i in range(l-1):
         l1 = line1.split()
         if l1[0] != 'BASE' and l1[0] != '.':
             PC = int(l1[0], 16)
+        elif l1[0] == 'BASE':
+            line2 = temp1[i+2]
+            l4 = line2.split()
+            PC = int(l4[0], 16)
         # header
         if len(temp) > 1 and temp[-2] == "START":
             f4.write("H^"+PROGNAME+"^"+"000000^"+LOCCTR)
@@ -164,8 +169,11 @@ for i in range(l-1):
         # normal format 3 instructions AND indirect: not F4, not F2, not indexed, not a declaration, not immediate, not indirect
         elif len(temp) > 1 and temp[-2] in OPTAB and '+' not in temp[-2] and temp[-2] not in FORMAT2 and ',X' not in temp[-1] and temp[-2] not in KEYWORDS and '#' not in temp[-1] and '@' not in temp[-1]:
             OPCODE = OPTAB[temp[-2].replace('\n', '')]
-            obj_code = generate_obj_code(OPCODE, '11', '2')
             TA = int(SYMTAB[temp[-1]], 16)
+            if TA-PC >= -2048 and TA-PC <= 2047:
+                obj_code = generate_obj_code(OPCODE, '11', '2')
+            else:
+                obj_code = generate_obj_code(OPCODE, '11', '4')
             disp = calc_disp(TA, PC, BASE)
             disps = tohex(disp, 12)
             disps = disps.replace('0x', '')
@@ -187,12 +195,12 @@ for i in range(l-1):
             o = temp[-1].replace('#', '')
             OPCODE = OPTAB[temp[-2].replace('\n', '')]
             if o in SYMTAB:  # for #LENGTH
-                obj_code = generate_obj_code(OPCODE, '01', '2')
                 TA = int(SYMTAB[o], 16)
+                if TA-PC >= -2048 and TA-PC <= 2047:
+                    obj_code = generate_obj_code(OPCODE, '01', '2')
+                else:
+                    obj_code = generate_obj_code(OPCODE, '11', '4')
                 disp = calc_disp(TA, PC, BASE)
-                print(TA)
-                print(PC)
-                print(disp)
                 disps = tohex(disp, 12)
             else:
                 obj_code = generate_obj_code(OPCODE, '01', '0')
@@ -201,11 +209,14 @@ for i in range(l-1):
             disps = disps.replace('0x', '')
             obj_code += (disps.upper()).zfill(3)
             OBJ_CODES[line] = obj_code
-        # indexed addressing  -> hard coded for BUFFER, X  -> modify to support both PC and base relative
+        # indexed addressing
         elif ',X' in temp[-1]:
             OPCODE = OPTAB[temp[-2].replace('\n', '')]
-            obj_code = generate_obj_code(OPCODE, '11', 'C')
             TA = int(SYMTAB[(temp[-1])[:-2]], 16)
+            if TA-PC >= -2048 and TA-PC <= 2047:
+                obj_code = generate_obj_code(OPCODE, '11', 'A')
+            else:
+                obj_code = generate_obj_code(OPCODE, '11', 'C')
             disp = calc_disp(TA, PC, BASE)
             disps = tohex(disp, 12)
             disps = disps.replace('0x', '')
