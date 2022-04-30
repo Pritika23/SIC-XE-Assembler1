@@ -1,5 +1,5 @@
-#import sys
-#inputFile = sys.argv[1]
+import sys
+inputFile = sys.argv[1]
 OPTAB = {"ADD": "18", "ADDR": "58", "CLEAR": "B4", "COMP": "28", "COMPR": "A0", "J": "3C", "JEQ": "30", "JLT": "38", "JSUB": "48", "LDA": "00", "LDB": "68",
          "LDCH": "50", "LDT": "74", "LDX": "04", "RD": "D8", "RSUB": "4C", "STA": "0C", "STCH": "54", "STL": "14", "STX": "10", "TD": "E0", "TIX": "2C", "TIXR": "B8", "WD": "DC"}
 LOCCTR = '000000'
@@ -9,8 +9,7 @@ FORMAT2 = ["ADDR", "CLEAR", "COMPR", "TIXR"]
 KEYWORDS = ["BYTE", "RESW", "RESB", "WORD"]
 REGISTERS = {"A": "0", "X": "1", "L": "2", "B": "3",
              "S": "4", "T": "5", "F": "6", "PC": "7", "SW": "8"}
-#f1 = open(inputFile, "r")
-f1 = open("input1.txt", "r")
+f1 = open(inputFile, "r")
 f2 = open("Intermediate.txt", "w+")
 SYMTAB = {}
 l1 = f1.readline()
